@@ -111,6 +111,7 @@ class Way(object):
         self.__nodes = None
         self.__attrs = None
         self.__tags = None
+        self.__bbox = (None, None, None, None) # (min_lat, max_lat, min_lon, max_lon)
 
         self.id = int(attrs.pop('id'))
         self.osm_parent = osm_parent
@@ -129,6 +130,8 @@ class Way(object):
             return list(self.__nodes)
         elif name == 'tags':
             return self.__tags
+        elif name == 'bbox':
+            return self.get_bbox()
         elif self.__attrs:
             return self.__attrs.get(name)
             
@@ -141,6 +144,8 @@ class Way(object):
             return list(self.__nodes)
         elif name == 'tags':
             return self.__tags
+        elif name == 'bbox':
+            return self.get_bbox()
 
     def __cmp__(self, other):
         cmp_ref = cmp(self.tags.get('ref',''), other.tags.get('ref',''))
@@ -159,6 +164,13 @@ class Way(object):
         if self.__attrs:
             d.update(self.__attrs.get_all())
         return d
+    
+    def get_bbox(self):
+        if self.__bbox[0] == None:
+            lat = [n.lat for n in self.nodes]
+            lon = [n.lon for n in self.nodes]
+            self.__bbox = (min(lat), max(lat), min(lon), max(lon))
+        return self.__bbox
 
     def __repr__(self):
         return "Way(attrs=%r, tags=%r, nodes=%r)" % (self.attributes(), self.__tags, list(self.__nodes))
@@ -171,6 +183,7 @@ class Relation(object):
         self.__members = None
         self.__attrs = None
         self.__tags = None
+        self.__bbox = (None, None, None, None) # (min_lat, max_lat, min_lon, max_lon)
 
         self.id = int(attrs.pop('id'))
         self.osm_parent = osm_parent
@@ -189,6 +202,8 @@ class Relation(object):
             return list(self.__members)
         elif name == 'tags':
             return self.__tags
+        elif name == 'bbox':
+            return self.get_bbox()
         elif self.__attrs:
             return self.__attrs.get(name)
             
@@ -201,6 +216,8 @@ class Relation(object):
             return self.__members
         elif name == 'tags':
             return self.__tags
+        elif name == 'bbox':
+            return self.get_bbox()
 
     def __cmp__(self, other):
         cmp_ref = cmp(self.tags.get('ref',''), other.tags.get('ref',''))
@@ -219,6 +236,20 @@ class Relation(object):
         if self.__attrs:
             d.update(self.__attrs.get_all())
         return d
+
+    def get_bbox(self):
+        if self.__bbox[0] == None:
+            members = self.members
+            ## lat/lon of Nodes
+            lat = [m[0].lat for m in members if type(members[0]) == Node]
+            lon = [m[0].lon for m in members if type(members[0]) == Node]
+            ## bbox data of ways and subrelations
+            lat.extend([m[0].bbox[0] for m in members if type(members[0]) != Node])
+            lat.extend([m[0].bbox[1] for m in members if type(members[0]) != Node])
+            lon.extend([m[0].bbox[2] for m in members if type(members[0]) != Node])
+            lon.extend([m[0].bbox[3] for m in members if type(members[0]) != Node])
+            self.__bbox = (min(lat), max(lat), min(lon), max(lon))
+        return self.__bbox
 
     def __repr__(self):
         if self.__members != None:

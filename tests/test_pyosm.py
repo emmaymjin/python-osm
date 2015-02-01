@@ -36,11 +36,11 @@ class OSMXMLFileTests(unittest.TestCase):
     def test_osm_itemgetter(self):
         log.info('relation item test:')
         r = list(self.osm.relations.values())[0] # get first relation
-        for it in ['id','members','member_data','tags']:
+        for it in ['id','members','member_data','tags','bbox']:
             log.info('  %s=%s', it, r[it])
         log.info('way item test:')
         w = list(self.osm.ways.values())[0] # get first relation
-        for it in ['id','nodes','nodeids','tags']:
+        for it in ['id','nodes','nodeids','tags','bbox']:
             log.info('  %s=%s', it, w[it])
         log.info('node item test:')
         n = list(self.osm.nodes.values())[0] # get first relation
