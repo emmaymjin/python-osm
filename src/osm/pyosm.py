@@ -165,6 +165,23 @@ class Way(object):
             d.update(self.__attrs.get_all())
         return d
     
+    def distance(self):
+        """
+        returns the distance of the way in meters
+        """
+        if len(self.nodes) < 2:
+            return 0.0
+        #print self.nodes[0]
+        lat = numpy.array([n.lat for n in self.nodes]) * numpy.pi / 180
+        lon = numpy.array([n.lon for n in self.nodes]) * numpy.pi / 180
+        lat1 = lat[:-1]
+        lat2 = lat[1:]
+        lon1 = lon[:-1]
+        lon2 = lon[1:]
+
+        dist = numpy.arctan(numpy.sqrt((numpy.cos(lat2)*numpy.sin(abs(lon1-lon2)))**2 + (numpy.cos(lat1)*numpy.sin(lat2) - numpy.sin(lat1)*numpy.cos(lat2)*numpy.cos(lon1-lon2))**2) / (numpy.sin(lat1)*numpy.sin(lat2) + numpy.cos(lat1)*numpy.cos(lat2)*numpy.cos(lon1-lon2)))
+        return numpy.sum(dist) * 6372795
+
     def get_bbox(self):
         if self.__bbox[0] == None:
             lat = [n.lat for n in self.nodes]
@@ -236,6 +253,27 @@ class Relation(object):
         if self.__attrs:
             d.update(self.__attrs.get_all())
         return d
+
+    def distance(self, roles=None, recursive=False):
+        """
+        calculate the distance of a route with all given roles.
+        if roles is empty, the roles are not checked
+        recursive calculation is for relations in relations
+        """
+        dist = 0.0
+        for obj, role in self.members:
+            if type(obj) == Node:
+                continue
+            if type(obj) == Way:
+                if not roles or role in roles:
+                    dist += obj.distance()
+                continue
+            if type(obj) == Relation:
+                if not recursive:
+                    continue
+                if not roles or role in roles:
+                    dist += obj.distance(roles=roles, recursive=recursive)
+        return dist
 
     def get_bbox(self):
         if self.__bbox[0] == None:
