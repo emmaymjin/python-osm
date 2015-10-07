@@ -39,11 +39,11 @@ class OSMXMLFileTests(unittest.TestCase):
         for it in ['id','members','member_data','tags','bbox']:
             log.info('  %s=%s', it, r[it])
         log.info('way item test:')
-        w = list(self.osm.ways.values())[0] # get first relation
+        w = list(self.osm.ways.values())[0] # get first way
         for it in ['id','nodes','nodeids','tags','bbox']:
             log.info('  %s=%s', it, w[it])
         log.info('node item test:')
-        n = list(self.osm.nodes.values())[0] # get first relation
+        n = list(self.osm.nodes.values())[0] # get first node
         for it in ['id','lat', 'lon','tags']:
             log.info('  %s=%s', it, n[it])
     
@@ -55,6 +55,23 @@ class OSMXMLFileTests(unittest.TestCase):
         log.info('osm2 stat after merge')
         osm2.statistic()
         osm2.write('testoutput/result_merge_write.osm')
+        
+    def test_geometry(self):
+        log.info('geometry tests:')
+        w = list(self.osm.ways.values())[0] # get first way
+        log.info('  distance way0: %f' % w.distance())
+        log.info('  bbox way0: %s' % str(w.bbox()))
+        r = list(self.osm.relations.values())[0] # get first relation        
+        log.info('  distance rel0: %f' % r.distance())
+        log.info('  bbox rel0: %s' % str(r.bbox()))
+        germany = pyosm.OSMXMLFile('osmfiles/germany_borders.osm')
+        rb = germany.relations[1111111]
+        log.info('  border bbox %s' % str(rb.bbox()))
+        log.info('  border bbox %s' % str(rb.bbox(recursive=True)))
+        log.info('  border length %f' % rb.distance())
+        log.info('  border length recursive %f' % rb.distance(recursive=True))
+        log.info('  border length recursive %f' % rb.distance(recursive=True, roles=['outer','']))
+        
 
 if __name__ == '__main__':
     if not os.path.exists('testoutput'):

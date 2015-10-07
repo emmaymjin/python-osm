@@ -100,6 +100,9 @@ class Node(object):
             d.update(self.__attrs.get_all())
         return d
 
+    def bbox(self, **kwargs):
+        return (self.lat, self.lat, self.lon, self.lon)
+
     def __repr__(self):
         return "Node(attrs=%r, tags=%r)" % (self.attributes(), self.__tags)
 
@@ -111,7 +114,6 @@ class Way(object):
         self.__nodes = None
         self.__attrs = None
         self.__tags = None
-        self.__bbox = (None, None, None, None) # (min_lat, max_lat, min_lon, max_lon)
 
         self.id = int(attrs.pop('id'))
         self.osm_parent = osm_parent
@@ -130,8 +132,6 @@ class Way(object):
             return list(self.__nodes)
         elif name == 'tags':
             return self.__tags
-        elif name == 'bbox':
-            return self.get_bbox()
         elif self.__attrs:
             return self.__attrs.get(name)
             
@@ -144,8 +144,6 @@ class Way(object):
             return list(self.__nodes)
         elif name == 'tags':
             return self.__tags
-        elif name == 'bbox':
-            return self.get_bbox()
 
     def __cmp__(self, other):
         cmp_ref = cmp(self.tags.get('ref',''), other.tags.get('ref',''))
@@ -171,7 +169,6 @@ class Way(object):
         """
         if len(self.nodes) < 2:
             return 0.0
-        #print self.nodes[0]
         lat = numpy.array([n.lat for n in self.nodes]) * numpy.pi / 180
         lon = numpy.array([n.lon for n in self.nodes]) * numpy.pi / 180
         lat1 = lat[:-1]
@@ -179,15 +176,14 @@ class Way(object):
         lon1 = lon[:-1]
         lon2 = lon[1:]
 
+        #formula see: https://en.wikipedia.org/wiki/Great-circle_distance#Computational_formulas
         dist = numpy.arctan(numpy.sqrt((numpy.cos(lat2)*numpy.sin(abs(lon1-lon2)))**2 + (numpy.cos(lat1)*numpy.sin(lat2) - numpy.sin(lat1)*numpy.cos(lat2)*numpy.cos(lon1-lon2))**2) / (numpy.sin(lat1)*numpy.sin(lat2) + numpy.cos(lat1)*numpy.cos(lat2)*numpy.cos(lon1-lon2)))
         return numpy.sum(dist) * 6372795
 
-    def get_bbox(self):
-        if self.__bbox[0] == None:
-            lat = [n.lat for n in self.nodes]
-            lon = [n.lon for n in self.nodes]
-            self.__bbox = (min(lat), max(lat), min(lon), max(lon))
-        return self.__bbox
+    def bbox(self, **kwargs):
+        lat = [n.lat for n in self.nodes]
+        lon = [n.lon for n in self.nodes]
+        return min(lat), max(lat), min(lon), max(lon)
 
     def __repr__(self):
         return "Way(attrs=%r, tags=%r, nodes=%r)" % (self.attributes(), self.__tags, list(self.__nodes))
@@ -200,7 +196,6 @@ class Relation(object):
         self.__members = None
         self.__attrs = None
         self.__tags = None
-        self.__bbox = (None, None, None, None) # (min_lat, max_lat, min_lon, max_lon)
 
         self.id = int(attrs.pop('id'))
         self.osm_parent = osm_parent
@@ -219,8 +214,6 @@ class Relation(object):
             return list(self.__members)
         elif name == 'tags':
             return self.__tags
-        elif name == 'bbox':
-            return self.get_bbox()
         elif self.__attrs:
             return self.__attrs.get(name)
             
@@ -233,8 +226,6 @@ class Relation(object):
             return self.__members
         elif name == 'tags':
             return self.__tags
-        elif name == 'bbox':
-            return self.get_bbox()
 
     def __cmp__(self, other):
         cmp_ref = cmp(self.tags.get('ref',''), other.tags.get('ref',''))
@@ -257,7 +248,7 @@ class Relation(object):
     def distance(self, roles=None, recursive=False):
         """
         calculate the distance of a route with all given roles.
-        if roles is empty, the roles are not checked
+        if roles is empty, all members are measured
         recursive calculation is for relations in relations
         """
         dist = 0.0
@@ -275,19 +266,15 @@ class Relation(object):
                     dist += obj.distance(roles=roles, recursive=recursive)
         return dist
 
-    def get_bbox(self):
-        if self.__bbox[0] == None:
-            members = self.members
-            ## lat/lon of Nodes
-            lat = [m[0].lat for m in members if type(members[0]) == Node]
-            lon = [m[0].lon for m in members if type(members[0]) == Node]
-            ## bbox data of ways and subrelations
-            lat.extend([m[0].bbox[0] for m in members if type(members[0]) != Node])
-            lat.extend([m[0].bbox[1] for m in members if type(members[0]) != Node])
-            lon.extend([m[0].bbox[2] for m in members if type(members[0]) != Node])
-            lon.extend([m[0].bbox[3] for m in members if type(members[0]) != Node])
-            self.__bbox = (min(lat), max(lat), min(lon), max(lon))
-        return self.__bbox
+    def bbox(self, recursive=False):
+        bboxes = []
+        for obj, role in self.members:
+            if recursive == False and type(obj) == Relation:
+                continue
+            bboxes.append(obj.bbox(recursive=recursive))
+
+        return min([b[0] for b in bboxes]), max([b[1] for b in bboxes]), \
+               min([b[2] for b in bboxes]), max([b[3] for b in bboxes]),
 
     def __repr__(self):
         if self.__members != None:
