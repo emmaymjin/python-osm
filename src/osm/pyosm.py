@@ -271,8 +271,13 @@ class Relation(object):
         for obj, role in self.members:
             if recursive == False and type(obj) == Relation:
                 continue
-            bboxes.append(obj.bbox(recursive=recursive))
+            bbox = obj.bbox(recursive=recursive)
+            if bbox:
+                bboxes.append(bbox)
 
+        if not bboxes:
+            return None
+            
         return min([b[0] for b in bboxes]), max([b[1] for b in bboxes]), \
                min([b[2] for b in bboxes]), max([b[3] for b in bboxes]),
 
